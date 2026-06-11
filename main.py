@@ -65,32 +65,22 @@ async def check_reminders():
         target_minute = reminder["event_minute"]
         notify_before = reminder["notify_before_minutes"]
 
-        # Vérifie jour semaine
         if now.weekday() != target_weekday:
             continue
 
-        # Construction heure événement (heure française)
         today = now.date()
-
         event_dt = datetime(
-            today.year,
-            today.month,
-            today.day,
-            target_hour,
-            target_minute,
+            today.year, today.month, today.day,
+            target_hour, target_minute,
             tzinfo=ZoneInfo("Europe/Paris")
         )
-
         send_dt = event_dt - timedelta(minutes=notify_before)
 
-        # Vérifie heure d'envoi
         if now.hour != send_dt.hour or now.minute != send_dt.minute:
             continue
 
-        # Anti double envoi
         last_sent = reminder.get("last_sent")
         current_key = now.strftime("%Y-%W-%u")
-
         if last_sent == current_key:
             continue
 
@@ -100,7 +90,6 @@ async def check_reminders():
             continue
 
         event_time_str = f"{target_hour:02d}h{target_minute:02d}"
-
         message = reminder.get(
             "message",
             f"@everyone 📅 Rappel : réunion à **{event_time_str}** !"
@@ -143,13 +132,10 @@ async def reminder_add(
     rappel_avant: int,
     message: str = ""
 ):
-
     if not (0 <= heure_evenement <= 23):
         return await interaction.response.send_message("❌ Heure invalide.", ephemeral=True)
-
     if not (0 <= minute_evenement <= 59):
         return await interaction.response.send_message("❌ Minute invalide.", ephemeral=True)
-
     if rappel_avant < 1:
         return await interaction.response.send_message("❌ Rappel trop court.", ephemeral=True)
 
@@ -180,7 +166,52 @@ async def reminder_add(
     embed.add_field(name="Salon", value=channel.mention, inline=True)
     embed.add_field(name="Jour", value=jour.capitalize(), inline=True)
     embed.add_field(name="Événement", value=event_time, inline=True)
+    await interaction.response.send_message(embed=embed)
 
+
+@tree.command(name="reminder_list", description="Lister tous les rappels actifs")
+async def reminder_list(interaction: discord.Interaction):
+    reminders = load_reminders()
+    active = [r for r in reminders if r.get("active", True)]
+
+    if not active:
+        return await interaction.response.send_message("📭 Aucun rappel actif.", ephemeral=True)
+
+    embed = discord.Embed(title="📋 Rappels actifs", color=0x5865F2)
+
+    for r in active:
+        channel = bot.get_channel(r["channel_id"])
+        channel_str = channel.mention if channel else f"#{r['channel_id']}"
+        jour_str = DAYS_FR.get(r["weekday"], "?").capitalize()
+        event_time = f"{r['event_hour']:02d}h{r['event_minute']:02d}"
+        embed.add_field(
+            name=f"ID {r['id']} — {jour_str} à {event_time}",
+            value=f"Salon : {channel_str}\nRappel : {r['notify_before_minutes']} min avant\nMessage : {r['message'][:80]}",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@tree.command(name="reminder_remove", description="Supprimer un rappel par son ID")
+@app_commands.describe(id="L'ID du rappel à supprimer (visible via /reminder_list)")
+async def reminder_remove(interaction: discord.Interaction, id: int):
+    reminders = load_reminders()
+    match = next((r for r in reminders if r["id"] == id), None)
+
+    if match is None:
+        return await interaction.response.send_message(f"❌ Aucun rappel avec l'ID {id}.", ephemeral=True)
+
+    reminders.remove(match)
+    save_reminders(reminders)
+
+    jour_str = DAYS_FR.get(match["weekday"], "?").capitalize()
+    event_time = f"{match['event_hour']:02d}h{match['event_minute']:02d}"
+
+    embed = discord.Embed(title="🗑️ Rappel supprimé", color=0xED4245)
+    embed.add_field(name="ID", value=str(id), inline=True)
+    embed.add_field(name="Jour", value=jour_str, inline=True)
+    embed.add_field(name="Événement", value=event_time, inline=True)
     await interaction.response.send_message(embed=embed)
 
 # ─── Events ───────────────────────────────────────────────────────────────────
