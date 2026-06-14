@@ -150,11 +150,14 @@ async def reminder_add(
     message: str = ""
 ):
     if not (0 <= heure_evenement <= 23):
-        return await interaction.response.send_message("❌ Heure invalide.", ephemeral=True)
+        await interaction.response.send_message("❌ Heure invalide.", ephemeral=True)
+        return
     if not (0 <= minute_evenement <= 59):
-        return await interaction.response.send_message("❌ Minute invalide.", ephemeral=True)
+        await interaction.response.send_message("❌ Minute invalide.", ephemeral=True)
+        return
     if rappel_avant < 1:
-        return await interaction.response.send_message("❌ Rappel trop court.", ephemeral=True)
+        await interaction.response.send_message("❌ Rappel trop court.", ephemeral=True)
+        return
 
     weekday = DAYS_MAP[jour]
     event_time = f"{heure_evenement:02d}h{minute_evenement:02d}"
@@ -192,7 +195,8 @@ async def reminder_list(interaction: discord.Interaction):
     active = [r for r in reminders if r.get("active", True)]
 
     if not active:
-        return await interaction.response.send_message("📭 Aucun rappel actif.", ephemeral=True)
+        await interaction.response.send_message("📭 Aucun rappel actif.", ephemeral=True)
+        return
 
     embed = discord.Embed(title="📋 Rappels actifs", color=0x5865F2)
 
@@ -217,7 +221,8 @@ async def reminder_remove(interaction: discord.Interaction, id: int):
     match = next((r for r in reminders if r["id"] == id), None)
 
     if match is None:
-        return await interaction.response.send_message(f"❌ Aucun rappel avec l'ID {id}.", ephemeral=True)
+        await interaction.response.send_message(f"❌ Aucun rappel avec l'ID {id}.", ephemeral=True)
+        return
 
     reminders.remove(match)
     save_reminders(reminders)
