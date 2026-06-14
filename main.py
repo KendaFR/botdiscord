@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import asyncio
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
+from threading import Thread
+from flask import Flask
 
 load_dotenv()
 
@@ -23,6 +25,21 @@ DAYS_MAP = {
     "vendredi": 4, "samedi": 5, "dimanche": 6
 }
 DAYS_FR = {v: k for k, v in DAYS_MAP.items()}
+
+# ─── Keep Alive (Render + UptimeRobot) ───────────────────────────────────────
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "✅ Bot en ligne !"
+
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run_flask, daemon=True)
+    t.start()
 
 # ─── Bot setup ────────────────────────────────────────────────────────────────
 
@@ -229,4 +246,5 @@ async def on_ready():
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
 
+keep_alive()
 bot.run(TOKEN)
